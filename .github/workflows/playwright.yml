@@ -1,10 +1,6 @@
 name: Playwright Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -15,14 +11,15 @@ on:
         options:
           - dev
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+env:
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  CI: true
 
-    env:
-      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-      CI: true
+jobs:
+  deps:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -34,29 +31,89 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright dependencies (if cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+  tests-e2e:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: deps
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Restore Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright dependencies
+        run: npx playwright install-deps chromium
 
       - name: Run Playwright tests
         run: |
           source envs-config/$ENVIRONMENT.env
           npm run test:e2e
 
-      - name: Upload HTML report
+      - name: Upload test results
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
+        with:
+          name: test-results
+          path: |
+            pw-report-html/
+            pw-report-json/
+          retention-days: 14
+
+  upload-artifacts:
+    name: Upload Artifacts
+    runs-on: ubuntu-latest
+    needs: tests-e2e
+    if: ${{ !cancelled() }}
+
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report-html
           path: pw-report-html/
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload JSON report
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
         with:
           name: playwright-report-json
           path: pw-report-json/
-          retention-days: 14
+          retention-days: 3

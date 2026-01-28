@@ -14,6 +14,7 @@ This document describes the coding standards, architectural patterns, and guidel
 - [Locator Strategy](#locator-strategy)
 - [Assertions](#assertions)
 - [Test Data Management](#test-data-management)
+- [CI/CD with GitHub Actions](#cicd-with-github-actions)
 
 ---
 
@@ -467,6 +468,124 @@ async shouldHavePrice(expected: string): Promise<void> {
 async fillInfo(firstName: string, lastName: string): Promise<void> {
   // ...
 }
+```
+
+---
+
+## CI/CD with GitHub Actions
+
+The project uses GitHub Actions for running E2E tests in CI/CD. The workflow is located at `.github/workflows/playwright.yml`.
+
+### Workflow Structure
+
+```
+tests-e2e → upload-artifacts
+```
+
+The pipeline consists of two jobs:
+
+1. **Run E2E Tests** - installs dependencies, sets up Playwright, runs tests
+2. **Upload Artifacts** - separates test reports into individual downloadable artifacts
+
+### Key Features
+
+#### Manual Trigger Only
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options:
+          - dev
+```
+
+Tests run only when manually triggered via GitHub Actions UI. This prevents unnecessary CI minutes consumption on every push and gives full control over when tests execute.
+
+#### Environment Selection
+
+The workflow supports environment selection through `workflow_dispatch` inputs. Environment variables are loaded from `envs-config/$ENVIRONMENT.env` before test execution:
+
+```yaml
+- name: Run Playwright tests
+  run: |
+    source envs-config/$ENVIRONMENT.env
+    npm run test:e2e
+```
+
+To add a new environment (e.g., staging), add the corresponding file `envs-config/staging.env` and update the workflow options.
+
+#### Node.js Version from `.nvmrc`
+
+```yaml
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version-file: '.nvmrc'
+    cache: 'npm'
+```
+
+Node version is read from `.nvmrc` file, ensuring consistency between local development and CI. The `cache: 'npm'` option caches `node_modules` for faster subsequent runs.
+
+#### Playwright Browser Caching
+
+```yaml
+- name: Cache Playwright browsers
+  uses: actions/cache@v4
+  id: playwright-cache
+  with:
+    path: ~/.cache/ms-playwright
+    key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+- name: Install Playwright browsers
+  if: steps.playwright-cache.outputs.cache-hit != 'true'
+  run: npx playwright install --with-deps chromium
+
+- name: Install Playwright OS dependencies
+  if: steps.playwright-cache.outputs.cache-hit == 'true'
+  run: npx playwright install-deps chromium
+```
+
+Browser binaries are cached to avoid re-downloading on every run. However, OS-level dependencies (system libraries) cannot be cached and must be installed each time via `install-deps`.
+
+#### Artifacts on Failure
+
+```yaml
+- name: Upload test results
+  uses: actions/upload-artifact@v4
+  if: ${{ !cancelled() }}
+```
+
+The `if: ${{ !cancelled() }}` condition ensures test reports are uploaded even when tests fail. This is critical for debugging failed test runs.
+
+#### Separate Report Artifacts
+
+Reports are split into separate artifacts for convenience:
+
+- `playwright-report-html` - HTML report for visual inspection
+- `playwright-report-json` - JSON report for programmatic processing
+
+### Running Tests in CI
+
+1. Go to **Actions** tab in GitHub repository
+2. Select **Playwright Tests** workflow
+3. Click **Run workflow**
+4. Select environment from dropdown
+5. Click **Run workflow** button
+
+### Adding New Environments
+
+1. Create environment config file: `envs-config/{env-name}.env`
+2. Add environment to workflow options:
+
+```yaml
+inputs:
+  environment:
+    type: choice
+    options:
+      - dev
+      - staging  # new environment
 ```
 
 ---

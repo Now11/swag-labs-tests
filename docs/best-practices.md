@@ -566,6 +566,36 @@ Reports are split into separate artifacts for convenience:
 - `playwright-report-html` - HTML report for visual inspection
 - `playwright-report-json` - JSON report for programmatic processing
 
+#### S3 Report Upload
+
+HTML reports are automatically uploaded to AWS S3 for easy sharing and viewing without downloading artifacts.
+
+```yaml
+- name: Configure AWS credentials
+  uses: aws-actions/configure-aws-credentials@v4
+  with:
+    aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    aws-region: ${{ vars.AWS_REGION }}
+
+- name: Upload HTML report to S3
+  run: |
+    aws s3 cp pw-report-html/ s3://${{ vars.AWS_S3_BUCKET }}/${{ github.run_id }}/ --recursive
+```
+
+Each workflow run uploads to a unique folder (`run_id`), so reports don't overwrite each other.
+
+**Required GitHub configuration:**
+
+| Type | Name | Description |
+|------|------|-------------|
+| Secret | `AWS_ACCESS_KEY_ID` | IAM user access key |
+| Secret | `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
+| Variable | `AWS_S3_BUCKET` | S3 bucket name |
+| Variable | `AWS_REGION` | AWS region (e.g., `eu-central-1`) |
+
+The report URL is printed in the workflow **Summary** section after each run.
+
 ### Running Tests in CI
 
 1. Go to **Actions** tab in GitHub repository

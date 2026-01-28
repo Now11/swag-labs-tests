@@ -6,6 +6,7 @@ Playwright + TypeScript test automation framework for [Swag Labs](https://www.sa
 
 - [Quick Start](#quick-start)
 - [Running Tests](#running-tests)
+- [CI/CD](#cicd)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Code Quality](#code-quality)
@@ -88,6 +89,30 @@ npm run test:local -- --ui
 # Open HTML report
 npm run report:open
 ```
+
+## CI/CD
+
+Tests run on GitHub Actions with manual trigger only.
+
+### Running Tests in CI
+
+1. Go to repository on GitHub
+2. Click **Actions** tab
+3. Select **Playwright Tests** from the left sidebar
+4. Click **Run workflow** button (right side)
+5. Select environment: `dev`
+6. Click green **Run workflow** button
+7. Wait for workflow to complete
+
+### Viewing Reports
+
+After workflow completes:
+
+1. Click on the completed workflow run
+2. Scroll down to **Summary** section
+3. Click the **S3 report link** to view HTML report in browser
+
+Alternative: Download artifacts (`playwright-report-html`, `playwright-report-json`) from the workflow run page.
 
 ## Project Structure
 

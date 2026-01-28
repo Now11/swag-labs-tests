@@ -1,0 +1,45 @@
+/test-results/
+/playwright-report/
+/playwright/.cache/
+pw-report-*
+
+# Logs
+logs
+log
+
+# Dependency directories
+node_modules/
+.npm/
+
+.idea
+/delete/
+/screenshots
+/.travis.yml
+/config.json
+/test.json
+env
+.DS_Store
+.vscode
+test-results/
+playwright-report/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+report.xml
+results.xml
+results.json
+
+# Env file
+.env
+
+# temp files
+**/*.temp.json
+*.temp.js
+tmp/*
+!tmp/.gitkeep
+build
+auth.json
+translations.*.json
+report
+
+debug*
